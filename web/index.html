@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pathways to Instability — Global Water–Conflict Hotspot Watch</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="app">
+
+  <header id="topbar">
+    <div class="brand">
+      <div class="brand-mark">◭</div>
+      <div class="brand-text">
+        <h1>PATHWAYS&nbsp;TO&nbsp;INSTABILITY</h1>
+        <p>Global water–conflict hotspot watch · <span class="dim">susceptibility, not a forecast</span></p>
+      </div>
+    </div>
+    <div class="stats" id="headerStats"><span class="loading">loading live data…</span></div>
+    <nav class="tabs">
+      <button class="tab active" data-view="map">Map</button>
+      <button class="tab" data-view="feed">Alert&nbsp;Feed</button>
+      <button class="tab" data-view="method">Methodology&nbsp;&amp;&nbsp;Sources</button>
+    </nav>
+  </header>
+
+  <!-- ===================== MAP VIEW ===================== -->
+  <section class="view active" id="view-map">
+    <aside id="sidebar">
+      <div class="panel search-panel">
+        <div class="searchbox">
+          <span class="search-ico">⌕</span>
+          <input id="countrySearch" type="text" placeholder="Search a country…" autocomplete="off" />
+          <span class="search-clear" id="searchClear" title="clear">×</span>
+        </div>
+        <div class="search-results" id="searchResults"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Hotspot tiers</h2>
+        <p class="muted small">Standing <b>susceptibility</b> raised by an
+          <b>active water disturbance</b>. Both are required for the top alert tier.</p>
+        <ul class="legend" id="legend"></ul>
+      </div>
+
+      <div class="panel">
+        <h2>Filters <span class="layers-reset" id="clearFilters">clear</span></h2>
+        <label class="ctl"><span>Minimum tier</span>
+          <select id="filterTier">
+            <option value="watch">Watch &amp; above</option>
+            <option value="elevated">Elevated &amp; above</option>
+            <option value="high">High &amp; above</option>
+            <option value="critical">Critical only</option>
+          </select>
+        </label>
+        <label class="ctl"><span>Region</span>
+          <select id="filterRegion"><option value="">All regions</option></select>
+        </label>
+        <label class="ctl check"><input type="checkbox" id="filterActive" /> <span>Only active water disturbances</span></label>
+        <div class="dtypes" id="dtypeFilters"></div>
+      </div>
+
+      <div class="panel">
+        <details id="layersPanel">
+          <summary><h2 style="display:inline">Data layers <span class="muted small" id="layersCount"></span></h2>
+            <span class="layers-reset" id="layersReset">reset</span></summary>
+          <p class="muted small" style="margin:6px 0 8px">Toggle any stream on or off — the
+            susceptibility score, map and watch-list recompute live.</p>
+          <div id="layerToggles"></div>
+        </details>
+      </div>
+
+      <div class="panel grow">
+        <h2>Top watch-list <span class="muted small" id="watchCount"></span></h2>
+        <ol class="hotlist" id="hotlist"></ol>
+      </div>
+    </aside>
+
+    <div id="mapWrap">
+      <div id="map"></div>
+      <div id="mapLoading"><div class="spinner"></div><div class="load-txt">Loading live data streams…</div></div>
+      <div class="map-controls">
+        <div class="proj-switch" id="projSwitch">
+          <button data-proj="robinson" class="active">Robinson</button>
+          <button data-proj="equalEarth">Equal&nbsp;Earth</button>
+          <button data-proj="globe">Globe</button>
+        </div>
+        <div class="proj-switch" id="overlaySwitch">
+          <button id="riversToggle" class="active" title="Toggle rivers overlay">≈ Rivers</button>
+        </div>
+        <div class="zoom-btns">
+          <button id="zoomIn" title="Zoom in">+</button>
+          <button id="zoomOut" title="Zoom out">−</button>
+          <button id="zoomReset" title="Reset view">⟳</button>
+        </div>
+      </div>
+      <div class="map-tooltip" id="mapTip"></div>
+      <div class="map-note" id="lastUpdated"></div>
+    </div>
+  </section>
+
+  <!-- ===================== FEED VIEW ===================== -->
+  <section class="view" id="view-feed">
+    <div class="feed-grid">
+      <div class="feed-col">
+        <h2>Active water disturbances <span class="muted small">live · GDACS</span></h2>
+        <p class="muted small">Droughts, floods and tropical cyclones currently flagged worldwide.
+          Where one of these coincides with high standing susceptibility, the country's alert tier rises.</p>
+        <div id="disturbanceFeed"></div>
+      </div>
+      <div class="feed-col">
+        <h2>Country watch-list <span class="muted small">ranked by alert score</span></h2>
+        <div id="countryFeed"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== METHOD VIEW ===================== -->
+  <section class="view" id="view-method">
+    <div class="method-wrap" id="methodWrap"></div>
+  </section>
+
+  <!-- ===================== DRILL-DOWN ===================== -->
+  <div id="drawer" class="drawer">
+    <div class="drawer-inner" id="drawerInner"></div>
+  </div>
+  <div id="scrim"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo-projection@4/dist/d3-geo-projection.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

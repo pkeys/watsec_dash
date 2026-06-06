@@ -1,0 +1,10 @@
+# No third-party dependencies.
+#
+# This tool runs on the Python 3 standard library ALONE — no `pip install` is
+# required. (It uses http.server, urllib, json, xml.etree, gzip, re, etc.)
+#
+# Requires: Python 3.8+
+#
+# To run:
+#   python3 scripts/fetch_data.py   # optional: warm the data cache up front
+#   python3 server.py               # then open http://localhost:8765

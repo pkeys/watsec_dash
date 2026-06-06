@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+message: "If you use this tool, please cite both the software and the framework paper it operationalises."
+title: "Pathways to Instability — Global Water–Conflict Hotspot Watch"
+abstract: >-
+  A dynamic, global, web-based hotspot alert system that operationalises the
+  Pathways to Instability framework of Beames et al. (2025) into a live
+  watch-list, blending quantitative structural indicators with a real-time
+  qualitative feed of water disturbances, with full source traceability. It
+  reports susceptibility, not a forecast.
+type: software
+authors:
+  - family-names: Keys
+    given-names: Patrick W.
+    email: pkeys.earth@gmail.com
+    affiliation: "Global Water Security Center (GWSC)"
+license: MIT
+repository-code: "https://github.com/pkeys/watsec_dash"
+keywords:
+  - water security
+  - conflict
+  - susceptibility
+  - hotspot
+  - open data
+references:
+  - type: article
+    title: "Pathways to instability: A synthetic framework to parse connections between water and conflict"
+    year: 2025
+    journal: "Environment and Security"
+    doi: "10.1177/27538796251340790"
+    authors:
+      - family-names: Beames
+        given-names: "P. L."
+      - family-names: Brauman
+        given-names: "K. A."
+      - family-names: Keys
+        given-names: "P. W."
+      - family-names: McCracken
+        given-names: "M."
+      - family-names: Mitchell
+        given-names: "P."
+      - family-names: Rosengaertner
+        given-names: "S."
+      - family-names: Schmeier
+        given-names: "S."
+      - family-names: Wolf
+        given-names: "A. T."
+      - family-names: Gremillion
+        given-names: "M."
