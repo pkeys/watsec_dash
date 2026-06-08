@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-GWSC Pathways-to-Instability Dashboard — backend.
+HEADWATERS — A Global Water–Conflict Susceptibility Watch — backend.
+
+Operationalises the Beames et al. (2025) "Pathways to Instability" framework.
 
 A small, dependency-free (stdlib only) server that:
   * serves the static dashboard from ./web
@@ -46,7 +48,7 @@ TTL_INDICATOR = 24 * 3600
 TTL_DISTURBANCE = 30 * 60
 TTL_COUNTRY = 7 * 24 * 3600
 
-USER_AGENT = "GWSC-Pathways-Dashboard/1.0 (research; contact pkeys.earth@gmail.com)"
+USER_AGENT = "Headwaters/1.0 (water-security research; contact pkeys.earth@gmail.com)"
 
 # ---------------------------------------------------------------------------
 # Provenance registry — the single source of truth for "where did this come from".
@@ -1178,7 +1180,8 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     port = int(os.environ.get("PORT", "8765"))
-    print(f"GWSC Pathways dashboard -> http://localhost:{port}")
+    print(f"HEADWATERS — A Global Water–Conflict Susceptibility Watch")
+    print(f"  -> http://localhost:{port}")
     print("Warming live data streams (World Bank + GDACS)...")
     try:
         p = cached_payload(force=True)

@@ -21,7 +21,7 @@ import urllib.parse
 import urllib.request
 import urllib.error
 
-UA = "GWSC-Pathways-Dashboard/1.0 (research; pkeys.earth@gmail.com)"
+UA = "Headwaters/1.0 (water-security research; pkeys.earth@gmail.com)"
 WIKI_API = "https://en.wikipedia.org/w/api.php"
 SOURCE = "Wikipedia (national election calendar)"
 TTL = 24 * 3600  # election pages move slowly; refresh daily

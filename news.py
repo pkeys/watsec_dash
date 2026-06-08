@@ -26,7 +26,7 @@ import urllib.request
 import urllib.error
 import xml.etree.ElementTree as ET
 
-USER_AGENT = "GWSC-Pathways-Dashboard/1.0 (research; pkeys.earth@gmail.com)"
+USER_AGENT = "Headwaters/1.0 (water-security research; pkeys.earth@gmail.com)"
 
 # A curated, lightweight subset of free RSS feeds weighted toward water,
 # humanitarian, hazard and conflict reporting — the framework's pathway.

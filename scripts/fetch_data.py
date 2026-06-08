@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-fetch_data.py — the dependencies fetcher for the GWSC Pathways-to-Instability
-dashboard.
+fetch_data.py — the dependencies fetcher for HEADWATERS, A Global Water–Conflict
+Susceptibility Watch.
 
 This script pulls every LIVE, OPEN, CITABLE upstream data stream the dashboard
 relies on into ./cache, so a fresh clone is fully warmed *before* you start the
@@ -61,7 +61,7 @@ def _human(path):
 
 
 def main():
-    print("GWSC Pathways dashboard — fetching data dependencies into ./cache")
+    print("HEADWATERS — fetching data dependencies into ./cache")
     print(f"  cache directory: {server.CACHE}")
     print("  (this reuses the server's own fetch routines; nothing is faked)\n")
 

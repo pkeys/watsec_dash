@@ -1,4 +1,4 @@
-# Pathways to Instability — Global Water–Conflict Hotspot Watch
+# HEADWATERS — A Global Water–Conflict Susceptibility Watch
 
 A dynamic, global, web-based **hotspot alert system** that operationalises the
 **Pathways to Instability Framework** of Beames et al. (2025) into a live watch-list.
@@ -18,6 +18,10 @@ cyclones), and it traces every figure back to its source.
 No dependencies beyond Python 3 (standard library only) — **no `pip install`**:
 
 ```bash
+# 0. get the code
+git clone https://github.com/pkeys/watsec_dash.git
+cd watsec_dash
+
 # 1. (optional) warm every data dependency into ./cache up front
 python3 scripts/fetch_data.py
 
@@ -42,7 +46,7 @@ the port.
 ## Repository layout
 
 ```
-gwsc-pathways-dashboard/
+watsec_dash/
 ├── server.py              # stdlib HTTP server: fetch + cache + score + serve
 ├── news.py                # stdlib RSS harvester (real-time water→instability signal)
 ├── elections.py           # Wikipedia election-calendar fallback parser

@@ -20,7 +20,7 @@ q = f'''SELECT ?electionLabel ?date ?iso ?typeLabel WHERE {{
 }}'''
 url = "https://query.wikidata.org/sparql?" + urllib.parse.urlencode({"query": q, "format": "json"})
 req = urllib.request.Request(url, headers={
-    "User-Agent": "GWSC-Pathways-Dashboard/1.0 (research; pkeys.earth@gmail.com)",
+    "User-Agent": "Headwaters/1.0 (water-security research; pkeys.earth@gmail.com)",
     "Accept": "application/sparql-results+json"})
 for attempt in range(5):
     try:
