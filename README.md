@@ -1,5 +1,8 @@
 # HEADWATERS — A Global Water–Conflict Susceptibility Watch
 
+**🌍 Live demo: https://headwaters.onrender.com**
+*(Free-tier hosting — the first visit after a quiet spell may take ~30–60 s to wake.)*
+
 A dynamic, global, web-based **hotspot alert system** that operationalises the
 **Pathways to Instability Framework** of Beames et al. (2025) into a live watch-list.
 
