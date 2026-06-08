@@ -1,5 +1,26 @@
 # HEADWATERS — A Global Water–Conflict Susceptibility Watch
 
+> ## ⚠️ Exploratory prototype — for data visualization only
+>
+> **This is an exploratory research prototype built to *visualize* open data along the
+> water–conflict pathway. Its outputs are illustrative, not definitive.**
+>
+> - The susceptibility scores and alert tiers are produced by a **transparent but
+>   uncalibrated, equal-weighted composite** of open indicators. They are a way to
+>   *explore and compare* standing conditions — **not** a validated risk model.
+> - It reports **susceptibility, not a forecast.** The underlying framework
+>   (Beames et al. 2025) is explicitly *non-predictive*, and neither is this tool. It
+>   does **not** predict conflict, instability, or any future event.
+> - Conclusions drawn from it should be treated as **hypotheses to investigate**, not
+>   findings. Numbers can be stale, incomplete, mis-attributed, or mismatched to the
+>   real world; data gaps are declared rather than filled.
+> - **Do not use this tool as a basis for operational, humanitarian, policy,
+>   financial, or safety-of-life decisions.** It comes with no warranty (see
+>   [LICENSE](LICENSE)) and is not a substitute for expert analysis or primary sources.
+>
+> It is shared in the open so its methods and data origins are fully inspectable and
+> so others can learn from, critique, and build on the approach.
+
 **🌍 Live demo: https://headwaters.onrender.com**
 *(Free-tier hosting — the first visit after a quiet spell may take ~30–60 s to wake.)*
 

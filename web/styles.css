@@ -313,3 +313,15 @@ footer.cite{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);co
 .tour-dots{ display:flex; gap:6px; justify-content:center; margin-top:13px; }
 .tour-dots span{ width:6px; height:6px; border-radius:50%; background:var(--line); transition:background .2s; }
 .tour-dots span.on{ background:var(--accent); }
+
+/* ===================== Exploratory-prototype disclaimer banner ===================== */
+#disclaimer{
+  background:rgba(224,179,65,.10);                 /* amber wash */
+  border-bottom:1px solid rgba(224,179,65,.45);
+  color:#f4d77a;                                    /* yellow text */
+  font-size:13.5px; line-height:1.45;
+  padding:9px 20px; text-align:center;
+  z-index:1100;
+}
+#disclaimer b{ color:#ffe08a; font-weight:700; }
+.disc-star{ color:#ffd34d; font-weight:800; font-size:15px; margin-right:2px; }
