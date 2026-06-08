@@ -410,7 +410,7 @@ function drawBase(){
 
 function drawRiverLabels(showR){
   if(!gLabels) return;
-  const fs = 8.5/labelDiv();
+  const fs = 10/labelDiv();
   // Reveal more labels as you zoom in (flat map). Globe stays at the major tier.
   const cutoff = state.proj==='globe' ? 2 : riverLabelCutoff(zoomK);
   const data = (showR && RIVER_LABELS.length) ? RIVER_LABELS.filter(d=>d.sr<=cutoff) : [];
@@ -433,7 +433,7 @@ function dotR(alert){ return 1.8 + (Math.max(0,alert)/100)*5.0; }   // small dot
 //   - divide by k exactly        -> constant on-screen size
 //   - divide by k^>1 (labelDiv)  -> shrinks as you zoom in  (fonts: less clutter deep in)
 //   - divide by k^<1 (markDiv)   -> grows as you zoom in     (dots/markers: stay visible)
-function labelDiv(){ return state.proj==='globe' ? 1 : Math.pow(zoomK, 1.28); }
+function labelDiv(){ return state.proj==='globe' ? 1 : Math.pow(zoomK, 1.12); }
 function markDiv(){  return state.proj==='globe' ? 1 : Math.pow(zoomK, 0.55); }
 function visiblePoint(lon,lat){
   if(state.proj!=='globe') return true;
@@ -490,7 +490,7 @@ function countryLabelCount(k){
 function drawCountryLabels(){
   if(!gCountryLabels) return;
   const k = state.proj==='globe' ? 1 : zoomK;
-  const fs = 8/labelDiv();
+  const fs = 9.5/labelDiv();
   const md = markDiv();   // dots scale by markDiv, so labels sit above their actual radius
   // rank by alert so the most important names appear first as zoom increases
   const ranked = filteredCountries().filter(c=>c.alert_score!=null)

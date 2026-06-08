@@ -38,14 +38,46 @@ GitHub-connected flow. The repo already contains everything needed.
   last time you refreshed `seed_cache/` (see below), not live. The susceptibility
   score only ever uses the most recent 5 years, which the summary already holds.
 
-## Refreshing the seeded data
+## How each data stream stays fresh
 
-When you want the hosted app to reflect newer UCDP / regime / geometry data, run a
-full warm-up locally (which fetches the heavy sources on your machine, where size
-is no problem) and copy the small products back into `seed_cache/`:
+The streams differ enormously in how often they actually change, so they refresh on
+different cadences (cache TTLs in `server.py`):
+
+| Stream | Cache TTL | Reality | On the hosted (free) tier |
+|--------|-----------|---------|---------------------------|
+| GDACS disturbances | 30 min | real-time hazards | lazy-refreshed on a visit when stale |
+| News (RSS) | per-visit, 7-day rolling | new articles constantly | accumulates while the app is awake |
+| World Bank indicators | 24 h | slow structural | lazy-refreshed |
+| Elections | 3 days | calendar | lazy-refreshed |
+| **UCDP conflict** | 30 days | **annual** (next ~mid-2026) | **served from the committed seed** |
+
+We deliberately do **not** run any background scheduler. Render's free tier sleeps
+after ~15 min idle and wipes the runtime `cache/`, so a timer-in-a-thread is
+unreliable there anyway. Instead every stream refreshes lazily when a visitor
+arrives and its cache has expired — except the slow, annual conflict data, which is
+served from the committed seed and never fetched on a web request (see below).
+
+> Want the live streams kept warm even with no visitors? Point a free external
+> scheduler (cron-job.org, GitHub Actions) at the site's URL every ~30–60 min — it
+> keeps the instance awake and triggers the lazy refreshes. Optional; not required.
+
+## Refreshing the seeded conflict data (with the UCDP API token)
+
+UCDP introduced **token-authenticated** API access in February 2026 (free — request
+a token from the API maintainer). The server already supports it: when the
+`UCDP_API_TOKEN` env var is set **locally**, `get_conflict()` pulls only the recent
+5 years from the REST API (a few MB via the `x-ucdp-access-token` header, paginated)
+instead of the 239 MB CSV, and writes the same small `ucdp_conflict.json`.
+
+Because UCDP GED is annual, you only need to refresh the seed when a new release
+lands. To do it (≈5 min):
 
 ```bash
-python3 scripts/fetch_data.py            # full local warm-up into ./cache
+# fetch the recent years via the API and rebuild the summary into ./cache
+UCDP_API_TOKEN=your-token python3 -c "import server; server.get_conflict(server.get_countries())"
+
+# refresh the rest of the committed seed too (regime, geometry, country list)
+python3 scripts/fetch_data.py
 cp cache/ucdp_conflict.json \
    cache/owid_political_regime.txt \
    cache/world-110m.json \
@@ -54,30 +86,19 @@ cp cache/ucdp_conflict.json \
 git add seed_cache && git commit -m "Refresh seeded data" && git push
 ```
 
-Render auto-deploys on push (`autoDeploy: true`), so the live site updates within
-a minute or two.
+Render auto-deploys on push (`autoDeploy: true`), so the live site updates within a
+minute or two.
 
-## Switching to the UCDP API (later)
+**Why the cloud doesn't call the API itself.** The hosted instance runs with
+`SKIP_HEAVY_FETCH=1`, and `get_conflict()` checks that guard *before* the API/CSV
+paths — so a web request always serves the seed instantly and never triggers the
+~5-min paginated fetch. (If you ever *did* want the cloud to refresh from the API,
+you would set `UCDP_API_TOKEN` in the Render dashboard as a secret and remove
+`SKIP_HEAVY_FETCH` — but for annual data that just spends time and request-quota for
+no real gain.) Either way the token must stay a dashboard secret, never committed.
 
-UCDP introduced **token-authenticated** API access in February 2026 (it is free —
-request a token from the API maintainer, describing your research use). Until you
-have a token, the hosted app uses the committed conflict summary, which is fine.
-
-When the token arrives, the swap is small and self-contained — it touches only
-`get_conflict()` in `server.py` (see the `TODO(ucdp-api)` marker there):
-
-1. In the Render dashboard → your service → **Environment**, add a secret env var
-   `UCDP_API_TOKEN` = your token. (Keep it out of `render.yaml` so it never enters
-   git — the file already has a commented placeholder noting this.)
-2. Fill in the API branch at the `TODO(ucdp-api)` marker: pull the recent
-   `CONFLICT_WINDOW` years from `https://ucdpapi.pcr.uu.se/api/gedevents/<version>`
-   with `Authorization: Bearer <token>`, aggregate into the **same** summary shape
-   the function already returns, and write `UCDP_JSON`. A few MB of JSON, not the
-   239 MB CSV — so it stays well within free-tier limits and needs no seed file.
-3. Push. Render auto-deploys; the conflict data is now live rather than seeded.
-
-Nothing else changes — scoring, the map, and the frontend only ever consume
-`get_conflict()`'s output, so they are unaffected.
+Nothing else changes when you refresh — scoring, the map, and the frontend only ever
+consume `get_conflict()`'s output, so they are unaffected.
 
 ## Other hosts
 

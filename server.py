@@ -428,6 +428,13 @@ UCDP_JSON = os.path.join(CACHE, "ucdp_conflict.json")
 CONFLICT_WINDOW = 5            # years for the "recent history" indicator
 TTL_CONFLICT = 30 * 24 * 3600  # UCDP is annual; refresh monthly at most
 
+# Authenticated REST API (UCDP introduced token access Feb 2026). When the env var
+# UCDP_API_TOKEN is set, get_conflict() pulls only the recent CONFLICT_WINDOW years
+# from here (a few MB of JSON) instead of the 239 MB CSV. Token goes in the
+# x-ucdp-access-token header; never hard-code it. 5,000 requests/day cap.
+UCDP_API_BASE = "https://ucdpapi.pcr.uu.se/api/gedevents/25.1"
+UCDP_API_PAGESIZE = 5000      # ~22 pages for a 5-year window -> well under the cap
+
 # UCDP uses historical / parenthetical country names; map them to ISO3.
 CONFLICT_OVERRIDES = {
     "yemen": "YEM", "dr congo": "COD", "congo": "COG", "myanmar": "MMR",
@@ -482,6 +489,90 @@ def _rank_actors(roster, top=8):
     return out
 
 
+def _aggregate_conflict(rows, countries, max_year, source_url, via):
+    """Reduce UCDP GED event rows (CSV DictReader rows OR API JSON objects — same
+    field names) into the per-ISO3 summary. Shared by the CSV and API paths so both
+    produce an identical shape. Only rows within the recent CONFLICT_WINDOW count."""
+    full, split = _conflict_name_maps(countries)
+
+    def lookup(name):
+        nm = _norm_country(name)
+        return CONFLICT_OVERRIDES.get(nm) or full.get(nm) or split.get(nm)
+
+    agg = {iso: {"recent_deaths": 0, "recent_events": 0,
+                 "latest_deaths": 0, "latest_events": 0} for iso in countries}
+    rosters = {iso: {} for iso in countries}   # iso -> {actor -> {events,deaths,tovs}}
+    recent_from = max_year - CONFLICT_WINDOW + 1
+    unmatched = 0
+    for r in rows:
+        y = int(r["year"])
+        if y < recent_from:
+            continue
+        iso = lookup(r["country"])
+        if iso is None or iso not in agg:
+            unmatched += 1
+            continue
+        best = int(r["best"]) if r["best"] not in (None, "") else 0
+        agg[iso]["recent_deaths"] += best
+        agg[iso]["recent_events"] += 1
+        if y == max_year:
+            agg[iso]["latest_deaths"] += best
+            agg[iso]["latest_events"] += 1
+        tov = r.get("type_of_violence", "")
+        for side in (r.get("side_a", ""), r.get("side_b", "")):
+            side = (str(side) if side is not None else "").strip()
+            if not side or side.lower() == "civilians":
+                continue  # civilians are victims, not mobilising actors
+            a = rosters[iso].setdefault(side, {"events": 0, "deaths": 0, "tovs": set()})
+            a["events"] += 1
+            a["deaths"] += best
+            a["tovs"].add(tov)
+
+    window = f"{recent_from}–{max_year}"
+    for iso in agg:
+        agg[iso]["latest_year"] = max_year
+        agg[iso]["window"] = window
+        agg[iso]["actors"] = _rank_actors(rosters[iso])
+        agg[iso]["actor_count"] = len(rosters[iso])
+
+    meta = {"source": UCDP_VERSION, "url": source_url, "ok": True,
+            "fetched_at": int(time.time()), "from_cache": False, "via": via,
+            "window": window, "latest_year": max_year, "unmatched_events": unmatched}
+    return agg, meta
+
+
+def _fetch_ucdp_api(token):
+    """Pull the recent CONFLICT_WINDOW years of GED events from the authenticated
+    REST API (x-ucdp-access-token header), paginating until done. Returns
+    (rows, max_year). Filtered server-side by StartDate so we transfer only what we
+    need — a few MB, not the 239 MB CSV."""
+    # We don't know max_year a priori, so request a generous recent window and let
+    # the data tell us the latest year. UCDP GED is annual; a 6-year StartDate
+    # comfortably covers CONFLICT_WINDOW even if a new annual release lands.
+    this_year = datetime.date.today().year
+    start = f"{this_year - CONFLICT_WINDOW - 1}-01-01"
+    rows = []
+    page = 0
+    while True:
+        qs = urllib.parse.urlencode({"pagesize": UCDP_API_PAGESIZE, "page": page,
+                                     "StartDate": start})
+        url = f"{UCDP_API_BASE}?{qs}"
+        req = urllib.request.Request(url, headers={
+            "x-ucdp-access-token": token, "User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            payload = json.load(resp)
+        batch = payload.get("Result") or []
+        rows.extend(batch)
+        total_pages = payload.get("TotalPages") or 1
+        page += 1
+        if page >= total_pages or not batch:
+            break
+    if not rows:
+        raise RuntimeError("UCDP API returned no events")
+    max_year = max(int(r["year"]) for r in rows)
+    return rows, max_year
+
+
 def get_conflict(countries):
     """Per-ISO3 conflict aggregates from UCDP GED. Returns (data, meta).
 
@@ -494,28 +585,36 @@ def get_conflict(countries):
             payload = json.load(f)
         return payload["data"], payload["_meta"]
 
-    # TODO(ucdp-api): authenticated API path. UCDP gated its API behind a token in
-    # Feb 2026 (request one from the API maintainer). Once UCDP_API_TOKEN is set,
-    # add a branch HERE that pulls only the recent CONFLICT_WINDOW years from
-    #   https://ucdpapi.pcr.uu.se/api/gedevents/<version>?pagesize=1000&page=N
-    # with header  Authorization: Bearer <token>  (a few MB of JSON, not the
-    # 239 MB CSV), aggregating into the SAME summary shape this function already
-    # returns (recent_deaths/recent_events/actors/…), then write UCDP_JSON and
-    # return. The CSV path below stays as the local fallback. Nothing downstream
-    # changes — see DEPLOY.md "Switching to the UCDP API".
-    UCDP_API_TOKEN = os.environ.get("UCDP_API_TOKEN")  # noqa: F841 — reserved for the path above
-
-    # Constrained-environment guard: on a small cloud box (SKIP_HEAVY_FETCH=1) the
-    # 239 MB UCDP CSV would exhaust RAM/disk. If a committed/seeded summary exists,
-    # use it even when older than TTL_CONFLICT rather than triggering the download.
-    # Refresh it by re-running the full warm-up locally (see DEPLOY.md).
+    # Constrained-environment guard (checked BEFORE any fetch): on a small cloud box
+    # (SKIP_HEAVY_FETCH=1) we must never run the slow ~5-min API paginate or the
+    # 239 MB CSV download on a web request. If a committed/seeded summary exists,
+    # serve it even when older than TTL_CONFLICT. UCDP GED is annual, so the seed
+    # only needs refreshing when a new release lands — done locally (with the API
+    # token) and committed; see DEPLOY.md "Switching to the UCDP API".
     if os.environ.get("SKIP_HEAVY_FETCH") and os.path.exists(UCDP_JSON):
         with open(UCDP_JSON) as f:
             payload = json.load(f)
         meta = dict(payload.get("_meta", {}))
         meta["from_cache"] = True
-        meta["note"] = "served from seeded summary (heavy CSV fetch skipped)"
+        meta["note"] = "served from seeded summary (heavy fetch skipped)"
         return payload["data"], meta
+
+    # Authenticated API path (local refresh). When UCDP_API_TOKEN is set and we are
+    # NOT in the constrained cloud env, pull only the recent CONFLICT_WINDOW years
+    # from the REST API (a few MB of JSON, not the 239 MB CSV) and aggregate into the
+    # SAME summary shape as the CSV path. This is how you regenerate the seed:
+    # run locally with the token, then commit the refreshed cache/ucdp_conflict.json.
+    token = os.environ.get("UCDP_API_TOKEN")
+    if token:
+        try:
+            rows, max_year = _fetch_ucdp_api(token)
+            agg, meta = _aggregate_conflict(rows, countries, max_year,
+                                            source_url=UCDP_API_BASE, via="api")
+            with open(UCDP_JSON, "w") as f:
+                json.dump({"data": agg, "_meta": meta}, f)
+            return agg, meta
+        except Exception as e:  # noqa — fall through to CSV on any API trouble
+            print(f"  UCDP API fetch failed ({e}); falling back to CSV")
 
     # Ensure the raw CSV is present (download + unzip once).
     if not os.path.exists(UCDP_CSV):
@@ -533,61 +632,14 @@ def get_conflict(countries):
             return {}, {"source": UCDP_VERSION, "ok": False, "error": str(e)}
 
     import csv as _csv
-    full, split = _conflict_name_maps(countries)
-
-    def lookup(name):
-        nm = _norm_country(name)
-        return CONFLICT_OVERRIDES.get(nm) or full.get(nm) or split.get(nm)
-
-    agg = {iso: {"recent_deaths": 0, "recent_events": 0,
-                 "latest_deaths": 0, "latest_events": 0} for iso in countries}
-    # actor rosters: iso -> {actor_name -> {events, deaths, tovs:set}}
-    rosters = {iso: {} for iso in countries}
-    max_year = 0
-    unmatched = 0
     try:
         with open(UCDP_CSV, newline="", encoding="utf-8") as f:
-            rdr = _csv.DictReader(f)
-            rows = list(rdr)
+            rows = list(_csv.DictReader(f))
         max_year = max(int(r["year"]) for r in rows)
-        recent_from = max_year - CONFLICT_WINDOW + 1
-        for r in rows:
-            y = int(r["year"])
-            if y < recent_from:
-                continue
-            iso = lookup(r["country"])
-            if iso is None or iso not in agg:
-                unmatched += 1
-                continue
-            best = int(r["best"]) if r["best"] else 0
-            agg[iso]["recent_deaths"] += best
-            agg[iso]["recent_events"] += 1
-            if y == max_year:
-                agg[iso]["latest_deaths"] += best
-                agg[iso]["latest_events"] += 1
-            # tally the named actors on both sides of the event
-            tov = r.get("type_of_violence", "")
-            for side in (r.get("side_a", ""), r.get("side_b", "")):
-                side = (side or "").strip()
-                if not side or side.lower() == "civilians":
-                    continue  # civilians are victims, not mobilising actors
-                a = rosters[iso].setdefault(side, {"events": 0, "deaths": 0, "tovs": set()})
-                a["events"] += 1
-                a["deaths"] += best
-                a["tovs"].add(tov)
+        agg, meta = _aggregate_conflict(rows, countries, max_year,
+                                        source_url=UCDP_GED_URL, via="csv")
     except Exception as e:  # noqa
         return {}, {"source": UCDP_VERSION, "ok": False, "error": str(e)}
-
-    window = f"{max_year - CONFLICT_WINDOW + 1}–{max_year}"
-    for iso in agg:
-        agg[iso]["latest_year"] = max_year
-        agg[iso]["window"] = window
-        agg[iso]["actors"] = _rank_actors(rosters[iso])
-        agg[iso]["actor_count"] = len(rosters[iso])
-
-    meta = {"source": UCDP_VERSION, "url": UCDP_GED_URL, "ok": True,
-            "fetched_at": int(time.time()), "from_cache": False,
-            "window": window, "latest_year": max_year, "unmatched_events": unmatched}
     with open(UCDP_JSON, "w") as f:
         json.dump({"data": agg, "_meta": meta}, f)
     return agg, meta
