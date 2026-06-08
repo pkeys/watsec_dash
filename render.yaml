@@ -1,0 +1,32 @@
+# Render.com blueprint for HEADWATERS.
+# Render reads this on first deploy (or via "New > Blueprint") and provisions the
+# service below. The app is pure Python standard library — no build/install step.
+#
+# Key choice: SKIP_HEAVY_FETCH=1 tells the server NOT to download the 239 MB UCDP
+# CSV (which would exhaust a free instance's RAM). It instead serves the small
+# pre-computed conflict summary shipped in seed_cache/. All other live streams
+# (World Bank, GDACS, news) are light and are fetched on demand as normal.
+services:
+  - type: web
+    name: headwaters
+    runtime: python
+    plan: free
+    # No dependencies to install; the stdlib is enough. (Render requires a build
+    # command; ":" is a no-op that always succeeds.)
+    buildCommand: ":"
+    # Render injects $PORT; server.py already reads it and binds 0.0.0.0.
+    startCommand: "python3 server.py"
+    envVars:
+      - key: SKIP_HEAVY_FETCH
+        value: "1"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      # UCDP gated its API behind a token in Feb 2026. When you receive one,
+      # set UCDP_API_TOKEN in the Render dashboard (Environment tab) — leave it
+      # OUT of this committed file so the secret is never in git. Once set, the
+      # server can fetch recent conflict years live instead of using the seeded
+      # summary (see DEPLOY.md "Switching to the UCDP API" and the TODO in
+      # get_conflict() in server.py).
+      # - key: UCDP_API_TOKEN
+      #   sync: false   # set as a secret in the dashboard, not here
+    autoDeploy: true

@@ -41,7 +41,34 @@ import elections  # Wikipedia election-calendar fallback when Wikidata/WDQS is d
 ROOT = os.path.dirname(os.path.abspath(__file__))
 WEB = os.path.join(ROOT, "web")
 CACHE = os.path.join(ROOT, "cache")
+SEED_CACHE = os.path.join(ROOT, "seed_cache")
 os.makedirs(CACHE, exist_ok=True)
+
+
+def seed_cache():
+    """Copy any committed pre-computed cache files (seed_cache/) into the runtime
+    cache/ if missing. This lets a fresh deploy (e.g. a free-tier cloud box) boot
+    in seconds with the small derived data already present — chiefly the reduced
+    UCDP conflict summary — instead of downloading the ~270 MB raw UCDP CSV, which
+    would exhaust limited RAM/disk. Locally it is a harmless no-op once cache/ is
+    warm. The seed files are refreshed by re-running the full warm-up and copying
+    the products back into seed_cache/ (see DEPLOY.md)."""
+    import shutil
+    if not os.path.isdir(SEED_CACHE):
+        return
+    restored = []
+    for name in os.listdir(SEED_CACHE):
+        src = os.path.join(SEED_CACHE, name)
+        dst = os.path.join(CACHE, name)
+        if os.path.isfile(src) and not os.path.exists(dst):
+            try:
+                shutil.copy2(src, dst)
+                restored.append(name)
+            except OSError:
+                pass
+    if restored:
+        print(f"  seeded {len(restored)} cache file(s) from seed_cache/: "
+              f"{', '.join(sorted(restored))}")
 
 # Cache lifetimes (seconds). Structural data moves slowly; hazards move fast.
 TTL_INDICATOR = 24 * 3600
@@ -461,11 +488,34 @@ def get_conflict(countries):
     data[iso] = {recent_deaths, recent_events, latest_year, latest_deaths,
                  latest_events, window}.  Countries absent from GED are genuine
                  zeros (no recorded organised-violence deaths), not missing."""
-    # Fast path: small cached JSON.
+    # Fast path: small cached JSON (the reduced per-country summary).
     if os.path.exists(UCDP_JSON) and (time.time() - os.path.getmtime(UCDP_JSON)) < TTL_CONFLICT:
         with open(UCDP_JSON) as f:
             payload = json.load(f)
         return payload["data"], payload["_meta"]
+
+    # TODO(ucdp-api): authenticated API path. UCDP gated its API behind a token in
+    # Feb 2026 (request one from the API maintainer). Once UCDP_API_TOKEN is set,
+    # add a branch HERE that pulls only the recent CONFLICT_WINDOW years from
+    #   https://ucdpapi.pcr.uu.se/api/gedevents/<version>?pagesize=1000&page=N
+    # with header  Authorization: Bearer <token>  (a few MB of JSON, not the
+    # 239 MB CSV), aggregating into the SAME summary shape this function already
+    # returns (recent_deaths/recent_events/actors/…), then write UCDP_JSON and
+    # return. The CSV path below stays as the local fallback. Nothing downstream
+    # changes — see DEPLOY.md "Switching to the UCDP API".
+    UCDP_API_TOKEN = os.environ.get("UCDP_API_TOKEN")  # noqa: F841 — reserved for the path above
+
+    # Constrained-environment guard: on a small cloud box (SKIP_HEAVY_FETCH=1) the
+    # 239 MB UCDP CSV would exhaust RAM/disk. If a committed/seeded summary exists,
+    # use it even when older than TTL_CONFLICT rather than triggering the download.
+    # Refresh it by re-running the full warm-up locally (see DEPLOY.md).
+    if os.environ.get("SKIP_HEAVY_FETCH") and os.path.exists(UCDP_JSON):
+        with open(UCDP_JSON) as f:
+            payload = json.load(f)
+        meta = dict(payload.get("_meta", {}))
+        meta["from_cache"] = True
+        meta["note"] = "served from seeded summary (heavy CSV fetch skipped)"
+        return payload["data"], meta
 
     # Ensure the raw CSV is present (download + unzip once).
     if not os.path.exists(UCDP_CSV):
@@ -1182,6 +1232,7 @@ def main():
     port = int(os.environ.get("PORT", "8765"))
     print(f"HEADWATERS — A Global Water–Conflict Susceptibility Watch")
     print(f"  -> http://localhost:{port}")
+    seed_cache()  # restore committed pre-computed data into cache/ if missing
     print("Warming live data streams (World Bank + GDACS)...")
     try:
         p = cached_payload(force=True)
