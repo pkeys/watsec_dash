@@ -97,10 +97,13 @@ a:hover{text-decoration:underline}
 .land{fill:#1a2336;stroke:#34425f;stroke-width:.5;stroke-linejoin:round}
 .borders{fill:none;stroke:#46587e;stroke-width:.5;stroke-linejoin:round;stroke-linecap:round}
 .rivers{fill:none;stroke:#3f86c4;stroke-width:.6;stroke-opacity:.65;stroke-linejoin:round;stroke-linecap:round;pointer-events:none}
-.river-label{fill:#7cc0f0;font-size:8.5px;font-style:italic;text-anchor:middle;pointer-events:none;
-  stroke:#0a1020;stroke-width:2.2px;paint-order:stroke fill;stroke-linejoin:round;opacity:.9}
-.country-label{fill:#e9eef7;font-size:8px;font-weight:600;text-anchor:middle;pointer-events:none;
-  stroke:#0a0e16;stroke-width:2.2px;paint-order:stroke fill;stroke-linejoin:round;
+/* NB: font-size and stroke-width are set as SVG ATTRIBUTES in JS (divided by the
+   zoom factor) so labels keep a constant on-screen size as you zoom. Do NOT set
+   them here — a CSS font-size would override the attribute and break that scaling. */
+.river-label{fill:#7cc0f0;font-style:italic;text-anchor:middle;pointer-events:none;
+  stroke:#0a1020;paint-order:stroke fill;stroke-linejoin:round;opacity:.9}
+.country-label{fill:#e9eef7;font-weight:600;text-anchor:middle;pointer-events:none;
+  stroke:#0a0e16;paint-order:stroke fill;stroke-linejoin:round;
   letter-spacing:.2px;opacity:.95}
 .dotlayer circle{transition:fill .2s}
 .pulse-dot{animation:pulsedot 1.7s ease-out infinite}

@@ -385,13 +385,14 @@ function buildRiverLabels(){
 }
 
 // How small a scalerank a river needs to be labelled at the current zoom factor.
-// k=1 (world) -> majors only (<=2); deeper zoom progressively admits the rest,
-// up to all 335 named rivers past ~5x. Globe view (k stays 1) shows majors.
+// Small rivers (scalerank 5-6, ~200 of them) are held back to deeper zoom so the
+// map doesn't fill with minor tributaries. k=1 (world) -> majors only (<=2);
+// the smallest tier (6) only appears past ~5x. Globe view (k stays 1) shows majors.
 function riverLabelCutoff(k){
-  if(k<1.6) return 2;
-  if(k<2.5) return 3;
-  if(k<3.5) return 4;
-  if(k<5)   return 5;
+  if(k<1.8) return 2;
+  if(k<3)   return 3;
+  if(k<4.5) return 4;
+  if(k<6)   return 5;
   return 6;            // everything
 }
 
@@ -415,12 +416,13 @@ function drawRiverLabels(showR){
   const data = (showR && RIVER_LABELS.length) ? RIVER_LABELS.filter(d=>d.sr<=cutoff) : [];
   const sel = gLabels.attr('display', showR?null:'none').selectAll('text').data(data, d=>d.name);
   sel.exit().remove();
+  const sw = (state.proj==='globe' ? 2.2 : 2.2/zoomK);
   sel.enter().append('text').attr('class','river-label').text(d=>d.name)
     .merge(sel).each(function(d){
       const p=projection(d.coord);
       const vis = p && visiblePoint(d.coord[0], d.coord[1]);
       d3.select(this).attr('display', vis?null:'none')
-        .attr('x', p?p[0]:0).attr('y', p?p[1]:0).attr('font-size', fs);
+        .attr('x', p?p[0]:0).attr('y', p?p[1]:0).attr('font-size', fs).attr('stroke-width', sw);
     });
 }
 
