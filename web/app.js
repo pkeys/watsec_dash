@@ -410,13 +410,13 @@ function drawBase(){
 
 function drawRiverLabels(showR){
   if(!gLabels) return;
-  const fs = state.proj==='globe' ? 8.5 : 8.5/zoomK;
+  const fs = 8.5/labelDiv();
   // Reveal more labels as you zoom in (flat map). Globe stays at the major tier.
   const cutoff = state.proj==='globe' ? 2 : riverLabelCutoff(zoomK);
   const data = (showR && RIVER_LABELS.length) ? RIVER_LABELS.filter(d=>d.sr<=cutoff) : [];
   const sel = gLabels.attr('display', showR?null:'none').selectAll('text').data(data, d=>d.name);
   sel.exit().remove();
-  const sw = (state.proj==='globe' ? 2.2 : 2.2/zoomK);
+  const sw = 2.2/labelDiv();
   sel.enter().append('text').attr('class','river-label').text(d=>d.name)
     .merge(sel).each(function(d){
       const p=projection(d.coord);
@@ -427,6 +427,14 @@ function drawRiverLabels(showR){
 }
 
 function dotR(alert){ return 1.8 + (Math.max(0,alert)/100)*5.0; }   // small dots
+
+// Zoom-compensation divisors. Elements live inside the zoom-transformed group
+// (scaled by zoomK), so dividing by a function of k controls their on-screen size:
+//   - divide by k exactly        -> constant on-screen size
+//   - divide by k^>1 (labelDiv)  -> shrinks as you zoom in  (fonts: less clutter deep in)
+//   - divide by k^<1 (markDiv)   -> grows as you zoom in     (dots/markers: stay visible)
+function labelDiv(){ return state.proj==='globe' ? 1 : Math.pow(zoomK, 1.28); }
+function markDiv(){  return state.proj==='globe' ? 1 : Math.pow(zoomK, 0.55); }
 function visiblePoint(lon,lat){
   if(state.proj!=='globe') return true;
   const c = projection.invert ? null : null;
@@ -458,8 +466,8 @@ function renderMap(){
         const node = d3.select(this);
         node.attr('display', vis?null:'none')
           .attr('cx', p?p[0]:0).attr('cy', p?p[1]:0)
-          .attr('r', dotR(c.alert_score)/k)
-          .attr('stroke-width', 0.8/k)
+          .attr('r', dotR(c.alert_score)/markDiv())
+          .attr('stroke-width', 0.8/markDiv())
           .attr('fill-opacity', 0.92);
         node.transition().duration(280).attr('fill', tcol(c.tier));  // smooth tier change
       });
@@ -482,7 +490,8 @@ function countryLabelCount(k){
 function drawCountryLabels(){
   if(!gCountryLabels) return;
   const k = state.proj==='globe' ? 1 : zoomK;
-  const fs = (state.proj==='globe' ? 8 : 8/zoomK);
+  const fs = 8/labelDiv();
+  const md = markDiv();   // dots scale by markDiv, so labels sit above their actual radius
   // rank by alert so the most important names appear first as zoom increases
   const ranked = filteredCountries().filter(c=>c.alert_score!=null)
     .sort((a,b)=> (b.alert_score||0)-(a.alert_score||0));
@@ -499,8 +508,8 @@ function drawCountryLabels(){
         const vis = p && visiblePoint(c.lon,c.lat);
         d3.select(this).attr('display', vis?null:'none')
           .attr('x', p?p[0]:0)
-          .attr('y', p?(p[1] - (dotR(c.alert_score)/k) - 2.5/k):0)   // sit just above the dot
-          .attr('font-size', fs).attr('stroke-width', 2.2/k);
+          .attr('y', p?(p[1] - (dotR(c.alert_score)/md) - 2.5/labelDiv()):0)   // sit just above the dot
+          .attr('font-size', fs).attr('stroke-width', 2.2/labelDiv());
       });
 }
 
@@ -509,12 +518,12 @@ function highlightDot(iso, on){
   const node = gDots.select(`circle[data-iso="${iso}"]`);
   if(node.empty()) return;
   const c = DATA.countries.find(x=>x.iso3===iso); if(!c) return;
-  const k = state.proj==='globe' ? 1 : zoomK;
+  const md = markDiv();
   node.raise()
     .transition().duration(120)
-    .attr('r', (on?dotR(c.alert_score)*1.7:dotR(c.alert_score))/k)
+    .attr('r', (on?dotR(c.alert_score)*1.7:dotR(c.alert_score))/md)
     .attr('stroke', on?'#fff':'#0a0e16')
-    .attr('stroke-width', (on?1.6:0.8)/k);
+    .attr('stroke-width', (on?1.6:0.8)/md);
 }
 
 function renderDisturbancesD3(k){
@@ -532,12 +541,12 @@ function renderDisturbancesD3(k){
       .each(function(d){
         const p = projection([d.lon,d.lat]);
         const vis = p && visiblePoint(d.lon,d.lat);
-        const s = (d.alert_rank>=3?5.5:4.2)/k;
+        const s = (d.alert_rank>=3?5.5:4.2)/markDiv();
         d3.select(this)
           .attr('display', vis?null:'none')
           .attr('d', p?`M${p[0]},${p[1]-s} L${p[0]+s},${p[1]} L${p[0]},${p[1]+s} L${p[0]-s},${p[1]} Z`:null)
           .attr('fill', DTYPE[d.type].color).attr('fill-opacity',.92)
-          .attr('stroke-width',0.8/k)
+          .attr('stroke-width',0.8/markDiv())
           .attr('class', d.alert_rank>=3?'pulse-dot':null);
       });
 }
@@ -559,11 +568,11 @@ function restyleForZoom(){
   const k=zoomK;
   gLand.attr('stroke-width',0.5/k); gGrat.attr('stroke-width',0.4/k); gSphere.attr('stroke-width',0.6/k);
   gBorders.attr('stroke-width',0.5/k); gRivers.attr('stroke-width',0.6/k);
-  drawRiverLabels(state.showRivers!==false);   // re-evaluate which river labels show at this zoom
-  gLabels.selectAll('text').attr('font-size',8.5/k).attr('stroke-width',2.2/k);
-  gDots.selectAll('circle').attr('r',c=>dotR(c.alert_score)/k).attr('stroke-width',0.8/k);
-  drawCountryLabels();                          // re-evaluate which country names show at this zoom
-  gDist.selectAll('path').each(function(d){ const s=(d.alert_rank>=3?5.5:4.2)/k; const p=projection([d.lon,d.lat]); if(p) d3.select(this).attr('d',`M${p[0]},${p[1]-s} L${p[0]+s},${p[1]} L${p[0]},${p[1]+s} L${p[0]-s},${p[1]} Z`).attr('stroke-width',0.8/k); });
+  drawRiverLabels(state.showRivers!==false);   // re-evaluate which river labels show at this zoom (sets its own font)
+  const md=markDiv();
+  gDots.selectAll('circle').attr('r',c=>dotR(c.alert_score)/md).attr('stroke-width',0.8/md);
+  drawCountryLabels();                          // re-evaluate which country names show at this zoom (sets its own font)
+  gDist.selectAll('path').each(function(d){ const s=(d.alert_rank>=3?5.5:4.2)/md; const p=projection([d.lon,d.lat]); if(p) d3.select(this).attr('d',`M${p[0]},${p[1]-s} L${p[0]+s},${p[1]} L${p[0]},${p[1]+s} L${p[0]-s},${p[1]} Z`).attr('stroke-width',0.8/md); });
 }
 /* ---- interaction: globe rotate + wheel scale + gentle auto-spin ---- */
 let spinTimer=null, lastSpin=0, interacting=false, resumeTimer=null;
