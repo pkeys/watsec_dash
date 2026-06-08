@@ -296,7 +296,7 @@ function filteredCountries(){
 
 /* ---------------- map (D3 geographic projections) ---------------- */
 let WORLD=null, LAND=null, BORDERS=null, RIVERS=null, RIVER_LABELS=[], projection, geoPath, svg, gZoom;
-let gSphere, gGrat, gLand, gRivers, gBorders, gLabels, gDots, gDist;
+let gSphere, gGrat, gLand, gRivers, gBorders, gLabels, gDots, gDist, gCountryLabels;
 let zoomBehavior, mapW=0, mapH=0, zoomK=1;
 let rotate=[-10,-12,0], baseScale=1;
 
@@ -323,6 +323,7 @@ async function initMap(){
   gLabels = gZoom.append('g').attr('class','riverlabels');
   gDist   = gZoom.append('g').attr('class','distlayer');
   gDots   = gZoom.append('g').attr('class','dotlayer');
+  gCountryLabels = gZoom.append('g').attr('class','countrylabels');
   setProjection(state.proj||'robinson');
   new ResizeObserver(()=>sizeMap()).observe(document.querySelector('#mapWrap'));
   wireMapControls();
@@ -366,6 +367,7 @@ function buildRiverLabels(){
   if(!RIVERS) return;
   const byName={};
   RIVERS.features.forEach(f=>{
+    if(!f.geometry) return;                                  // some features have null geometry
     const nm=(f.properties.name_en||f.properties.name||'').trim(); if(!nm) return;
     const sr=(f.properties.scalerank==null?6:f.properties.scalerank);
     let lines = f.geometry.type==='LineString' ? [f.geometry.coordinates] : (f.geometry.coordinates||[]);
@@ -460,6 +462,44 @@ function renderMap(){
         node.transition().duration(280).attr('fill', tcol(c.tier));  // smooth tier change
       });
   renderDisturbancesD3(k);
+  drawCountryLabels();
+}
+
+// How many country names to show, by zoom. World view stays sparse (only the
+// highest-alert places, so names don't smother the dots); zooming in reveals more,
+// and past ~4x every country with a score is named. Globe view stays sparse.
+function countryLabelCount(k){
+  if(state.proj==='globe') return 14;
+  if(k<1.3) return 16;
+  if(k<2)   return 36;
+  if(k<3)   return 70;
+  if(k<4)   return 130;
+  return 1e9;            // all of them
+}
+
+function drawCountryLabels(){
+  if(!gCountryLabels) return;
+  const k = state.proj==='globe' ? 1 : zoomK;
+  const fs = (state.proj==='globe' ? 8 : 8/zoomK);
+  // rank by alert so the most important names appear first as zoom increases
+  const ranked = filteredCountries().filter(c=>c.alert_score!=null)
+    .sort((a,b)=> (b.alert_score||0)-(a.alert_score||0));
+  const n = countryLabelCount(k);
+  const data = ranked.slice(0, Math.min(n, ranked.length));
+  const sel = gCountryLabels.selectAll('text').data(data, c=>c.iso3);
+  sel.exit().remove();
+  sel.enter().append('text').attr('class','country-label')
+      .attr('text-anchor','middle')
+    .merge(sel)
+      .text(c=>c.name)
+      .each(function(c){
+        const p = projection([c.lon,c.lat]);
+        const vis = p && visiblePoint(c.lon,c.lat);
+        d3.select(this).attr('display', vis?null:'none')
+          .attr('x', p?p[0]:0)
+          .attr('y', p?(p[1] - (dotR(c.alert_score)/k) - 2.5/k):0)   // sit just above the dot
+          .attr('font-size', fs).attr('stroke-width', 2.2/k);
+      });
 }
 
 /* highlight a country's dot (from map hover or hotlist hover) */
@@ -517,9 +557,10 @@ function restyleForZoom(){
   const k=zoomK;
   gLand.attr('stroke-width',0.5/k); gGrat.attr('stroke-width',0.4/k); gSphere.attr('stroke-width',0.6/k);
   gBorders.attr('stroke-width',0.5/k); gRivers.attr('stroke-width',0.6/k);
-  drawRiverLabels(state.showRivers!==false);   // re-evaluate which labels show at this zoom
+  drawRiverLabels(state.showRivers!==false);   // re-evaluate which river labels show at this zoom
   gLabels.selectAll('text').attr('font-size',8.5/k).attr('stroke-width',2.2/k);
   gDots.selectAll('circle').attr('r',c=>dotR(c.alert_score)/k).attr('stroke-width',0.8/k);
+  drawCountryLabels();                          // re-evaluate which country names show at this zoom
   gDist.selectAll('path').each(function(d){ const s=(d.alert_rank>=3?5.5:4.2)/k; const p=projection([d.lon,d.lat]); if(p) d3.select(this).attr('d',`M${p[0]},${p[1]-s} L${p[0]+s},${p[1]} L${p[0]},${p[1]+s} L${p[0]-s},${p[1]} Z`).attr('stroke-width',0.8/k); });
 }
 /* ---- interaction: globe rotate + wheel scale + gentle auto-spin ---- */

@@ -99,6 +99,9 @@ a:hover{text-decoration:underline}
 .rivers{fill:none;stroke:#3f86c4;stroke-width:.6;stroke-opacity:.65;stroke-linejoin:round;stroke-linecap:round;pointer-events:none}
 .river-label{fill:#7cc0f0;font-size:8.5px;font-style:italic;text-anchor:middle;pointer-events:none;
   stroke:#0a1020;stroke-width:2.2px;paint-order:stroke fill;stroke-linejoin:round;opacity:.9}
+.country-label{fill:#e9eef7;font-size:8px;font-weight:600;text-anchor:middle;pointer-events:none;
+  stroke:#0a0e16;stroke-width:2.2px;paint-order:stroke fill;stroke-linejoin:round;
+  letter-spacing:.2px;opacity:.95}
 .dotlayer circle{transition:fill .2s}
 .pulse-dot{animation:pulsedot 1.7s ease-out infinite}
 @keyframes pulsedot{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
