@@ -1,4 +1,5 @@
-/* Pathways to Instability — Global Water–Conflict Hotspot Watch (frontend)
+/* HEADWATERS — A Global Water–Conflict Susceptibility Watch (frontend)
+   Operationalises the Beames et al. (2025) "Pathways to Instability" framework.
    Renders the payload from /api/hotspots. Each displayed value links to its source. */
 
 const TIERS = {
@@ -54,6 +55,7 @@ async function boot(){
     await initMap();                // async: fetches country geometry
     renderAll(); buildMethod();
     const ld=$('#mapLoading'); if(ld) ld.classList.add('done');
+    initTour();                     // wire the ? Guide button; auto-run on first visit
   }catch(e){
     console.error(e);
     showFatal(e);
@@ -355,21 +357,40 @@ function setProjection(name){
   if(name==='globe') attachGlobeInteraction(); else attachFlatZoom();
 }
 
-// Build one label anchor per major named river (lowest scalerank = biggest),
-// placed at the midpoint of its longest segment.
+// Build one label anchor per named river, placed at the midpoint of its longest
+// segment. We keep ALL named rivers (~335) and tag each with its Natural Earth
+// scalerank (smaller = more important); drawRiverLabels() then reveals them
+// progressively by zoom, so the world view shows only the majors and zooming in
+// uncovers the rest — "label them all", without smothering the map.
 function buildRiverLabels(){
   if(!RIVERS) return;
   const byName={};
   RIVERS.features.forEach(f=>{
-    const sr=f.properties.scalerank; if(sr==null||sr>2) return;       // majors only
     const nm=(f.properties.name_en||f.properties.name||'').trim(); if(!nm) return;
+    const sr=(f.properties.scalerank==null?6:f.properties.scalerank);
     let lines = f.geometry.type==='LineString' ? [f.geometry.coordinates] : (f.geometry.coordinates||[]);
     let longest=null; lines.forEach(l=>{ if(!longest||l.length>longest.length) longest=l; });
     if(!longest||longest.length<2) return;
     const mid=longest[Math.floor(longest.length/2)];
-    if(!byName[nm] || longest.length>byName[nm].len) byName[nm]={name:nm, coord:mid, len:longest.length, sr};
+    // keep the longest segment for this name, and remember its smallest scalerank
+    if(!byName[nm] || longest.length>byName[nm].len){
+      byName[nm]={name:nm, coord:mid, len:longest.length, sr:Math.min(sr, byName[nm]?byName[nm].sr:sr)};
+    } else {
+      byName[nm].sr = Math.min(byName[nm].sr, sr);
+    }
   });
   RIVER_LABELS=Object.values(byName);
+}
+
+// How small a scalerank a river needs to be labelled at the current zoom factor.
+// k=1 (world) -> majors only (<=2); deeper zoom progressively admits the rest,
+// up to all 335 named rivers past ~5x. Globe view (k stays 1) shows majors.
+function riverLabelCutoff(k){
+  if(k<1.6) return 2;
+  if(k<2.5) return 3;
+  if(k<3.5) return 4;
+  if(k<5)   return 5;
+  return 6;            // everything
 }
 
 function drawBase(){
@@ -387,7 +408,9 @@ function drawBase(){
 function drawRiverLabels(showR){
   if(!gLabels) return;
   const fs = state.proj==='globe' ? 8.5 : 8.5/zoomK;
-  const data = (showR && RIVER_LABELS.length) ? RIVER_LABELS : [];
+  // Reveal more labels as you zoom in (flat map). Globe stays at the major tier.
+  const cutoff = state.proj==='globe' ? 2 : riverLabelCutoff(zoomK);
+  const data = (showR && RIVER_LABELS.length) ? RIVER_LABELS.filter(d=>d.sr<=cutoff) : [];
   const sel = gLabels.attr('display', showR?null:'none').selectAll('text').data(data, d=>d.name);
   sel.exit().remove();
   sel.enter().append('text').attr('class','river-label').text(d=>d.name)
@@ -479,8 +502,14 @@ function renderDisturbancesD3(k){
 
 /* ---- interaction: flat zoom/pan ---- */
 function attachFlatZoom(){
+  // translateExtent is given in *world* (pre-transform) coords. Using the bare
+  // viewport box [[0,0],[mapW,mapH]] makes d3 keep that whole rectangle on-screen,
+  // which pins panning once zoomed in (the "locks to a domain" glitch). Allow a
+  // generous margin around the map so you can drag freely to any zoomed-in region
+  // while still preventing the map from being flung entirely off-screen.
+  const mx = mapW, my = mapH;   // one full screen of slack on every side
   zoomBehavior = d3.zoom().scaleExtent([1,9])
-    .translateExtent([[0,0],[mapW,mapH]])
+    .translateExtent([[-mx,-my],[mapW+mx,mapH+my]])
     .on('zoom',(e)=>{ zoomK=e.transform.k; gZoom.attr('transform',e.transform); restyleForZoom(); });
   svg.call(zoomBehavior);
 }
@@ -488,6 +517,7 @@ function restyleForZoom(){
   const k=zoomK;
   gLand.attr('stroke-width',0.5/k); gGrat.attr('stroke-width',0.4/k); gSphere.attr('stroke-width',0.6/k);
   gBorders.attr('stroke-width',0.5/k); gRivers.attr('stroke-width',0.6/k);
+  drawRiverLabels(state.showRivers!==false);   // re-evaluate which labels show at this zoom
   gLabels.selectAll('text').attr('font-size',8.5/k).attr('stroke-width',2.2/k);
   gDots.selectAll('circle').attr('r',c=>dotR(c.alert_score)/k).attr('stroke-width',0.8/k);
   gDist.selectAll('path').each(function(d){ const s=(d.alert_rank>=3?5.5:4.2)/k; const p=projection([d.lon,d.lat]); if(p) d3.select(this).attr('d',`M${p[0]},${p[1]-s} L${p[0]+s},${p[1]} L${p[0]},${p[1]+s} L${p[0]-s},${p[1]} Z`).attr('stroke-width',0.8/k); });
@@ -833,7 +863,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDrawer();});
 
 /* ---------------- tabs ---------------- */
 function wireTabs(){
-  document.querySelectorAll('.tab').forEach(t=>{
+  document.querySelectorAll('.tab[data-view]').forEach(t=>{
     t.onclick=()=>{
       document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
       document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
@@ -1003,3 +1033,133 @@ function buildMethod(){
 window.openCountry = openCountry;
 window.closeDrawer = closeDrawer;
 boot();
+
+/* ===================== Guided tour (first-visit onboarding) ===================== */
+const TOUR_KEY = 'headwaters_tour_seen_v1';
+const TOUR_STEPS = [
+  { sel:null, title:'Welcome to HEADWATERS',
+    body:'A global watch-list for places where water stress meets standing fragility. It reports <b>susceptibility — not a forecast</b>. This 60-second tour shows you how to read and drive it.' },
+  { sel:'#map', title:'The map',
+    body:'Each dot is a country, sized and coloured by its <b>alert tier</b> (Watch → Critical). Hover a dot for a summary; click it to open the full pathway drill-down. Drag to pan, scroll to zoom — and zoom in to reveal more river labels.' },
+  { sel:'#legend', title:'Alert tiers',
+    body:'The four tiers run Watch → Elevated → High → Critical. Only a country that is <b>both</b> structurally susceptible and currently disturbed can reach the top tiers. Click a tier to filter the map to it.' },
+  { sel:'.search-panel', title:'Find a country',
+    body:'Jump straight to any country by name — useful when you have a specific place in mind.' },
+  { sel:'#layersPanel', title:'Data layers — the heart of it',
+    body:'Every indicator and the live-disturbance boost can be toggled on or off here. The score, map and watch-list recompute <b>instantly in your browser</b> — so you can isolate one data stream or stress-test how much any single source drives the result.' },
+  { sel:'#filterTier', title:'Filters',
+    body:'Narrow the view by tier, region, or to only countries with an active water disturbance — and filter by disturbance type (drought, flood, cyclone).' },
+  { sel:'#hotlist', title:'Top watch-list',
+    body:'The current highest-alert countries, ranked. Click any entry to open its detailed pathway breakdown across the framework’s seven categories.' },
+  { sel:'.tabs', title:'Feed, methods & sources',
+    body:'The <b>Alert Feed</b> lists live disturbances and emerging signals. <b>Methodology &amp; Sources</b> documents every indicator, how the score is built, and traces each figure back to its open data origin. Re-open this tour anytime with <b>? Guide</b>.' },
+];
+let tourIdx = 0;
+
+function initTour(){
+  const btn = document.getElementById('helpBtn');
+  if(btn) btn.onclick = ()=>startTour(0);
+  // auto-run once, on first visit only
+  let seen = false;
+  try{ seen = localStorage.getItem(TOUR_KEY)==='1'; }catch(e){}
+  if(!seen) setTimeout(()=>startTour(0), 700);
+}
+
+function markTourSeen(){ try{ localStorage.setItem(TOUR_KEY,'1'); }catch(e){} }
+
+function startTour(i){
+  // tour only makes sense on the map view — switch to it if needed
+  const mapTab = document.querySelector('.tab[data-view="map"]');
+  if(state.view!=='map' && mapTab) mapTab.click();
+  tourIdx = i||0;
+  const t = document.getElementById('tour');
+  if(!t) return;
+  t.hidden = false;
+  buildTourDots();
+  document.getElementById('tourNext').onclick = ()=>tourGo(1);
+  document.getElementById('tourPrev').onclick = ()=>tourGo(-1);
+  document.getElementById('tourSkip').onclick = endTour;
+  document.addEventListener('keydown', tourKeys);
+  window.addEventListener('resize', positionTour);
+  showTourStep();
+}
+
+function tourKeys(e){
+  if(e.key==='Escape') endTour();
+  else if(e.key==='ArrowRight') tourGo(1);
+  else if(e.key==='ArrowLeft') tourGo(-1);
+}
+
+function tourGo(d){
+  const n = tourIdx + d;
+  if(n<0) return;
+  if(n>=TOUR_STEPS.length){ endTour(); return; }
+  tourIdx = n;
+  showTourStep();
+}
+
+function buildTourDots(){
+  const dots = document.getElementById('tourDots');
+  dots.innerHTML = TOUR_STEPS.map((_,i)=>`<span data-i="${i}"></span>`).join('');
+  dots.querySelectorAll('span').forEach(s=> s.onclick=()=>{ tourIdx=+s.dataset.i; showTourStep(); });
+}
+
+function showTourStep(){
+  const step = TOUR_STEPS[tourIdx];
+  document.getElementById('tourStepNum').textContent = `Step ${tourIdx+1} of ${TOUR_STEPS.length}`;
+  document.getElementById('tourTitle').innerHTML = step.title;
+  document.getElementById('tourBody').innerHTML = step.body;
+  document.getElementById('tourPrev').disabled = (tourIdx===0);
+  document.getElementById('tourNext').textContent = (tourIdx===TOUR_STEPS.length-1) ? 'Done' : 'Next';
+  document.querySelectorAll('#tourDots span').forEach((s,i)=> s.classList.toggle('on', i===tourIdx));
+  positionTour();
+}
+
+// resolve a step's target element (first selector that matches and is visible)
+function tourTarget(step){
+  if(!step || !step.sel) return null;
+  for(const sel of step.sel.split(',')){
+    const el = document.querySelector(sel.trim());
+    if(el && el.getClientRects().length) return el;
+  }
+  return null;
+}
+
+function positionTour(){
+  const step = TOUR_STEPS[tourIdx];
+  const spot = document.getElementById('tourSpot');
+  const card = document.getElementById('tourCard');
+  const el = tourTarget(step);
+  const pad = 8, vw = innerWidth, vh = innerHeight, cw = card.offsetWidth||330, ch = card.offsetHeight||220, gap = 16;
+
+  if(!el){
+    // no target → centre the card, hide the spotlight (backdrop dims everything)
+    spot.classList.add('hidden');
+    card.style.top  = Math.max(16, (vh-ch)/2) + 'px';
+    card.style.left = Math.max(16, (vw-cw)/2) + 'px';
+    return;
+  }
+  const r = el.getBoundingClientRect();
+  spot.classList.remove('hidden');
+  spot.style.top    = (r.top-pad) + 'px';
+  spot.style.left   = (r.left-pad) + 'px';
+  spot.style.width  = (r.width+pad*2) + 'px';
+  spot.style.height = (r.height+pad*2) + 'px';
+
+  // place the card on whichever side has room: right → left → below → above
+  let left, top;
+  if(r.right + gap + cw < vw){ left = r.right + gap; top = r.top; }
+  else if(r.left - gap - cw > 0){ left = r.left - gap - cw; top = r.top; }
+  else if(r.bottom + gap + ch < vh){ left = Math.min(r.left, vw-cw-16); top = r.bottom + gap; }
+  else { left = Math.min(r.left, vw-cw-16); top = Math.max(16, r.top - gap - ch); }
+  card.style.left = Math.max(16, Math.min(left, vw-cw-16)) + 'px';
+  card.style.top  = Math.max(16, Math.min(top,  vh-ch-16)) + 'px';
+}
+
+function endTour(){
+  const t = document.getElementById('tour');
+  if(t) t.hidden = true;
+  document.removeEventListener('keydown', tourKeys);
+  window.removeEventListener('resize', positionTour);
+  markTourSeen();
+}

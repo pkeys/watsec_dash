@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Pathways to Instability — Global Water–Conflict Hotspot Watch</title>
+<title>HEADWATERS — A Global Water–Conflict Susceptibility Watch</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" />
 <link rel="stylesheet" href="styles.css" />
 </head>
@@ -14,8 +14,8 @@
     <div class="brand">
       <div class="brand-mark">◭</div>
       <div class="brand-text">
-        <h1>PATHWAYS&nbsp;TO&nbsp;INSTABILITY</h1>
-        <p>Global water–conflict hotspot watch · <span class="dim">susceptibility, not a forecast</span></p>
+        <h1>HEADWATERS</h1>
+        <p>Global water–conflict susceptibility watch · <span class="dim">susceptibility, not a forecast</span></p>
       </div>
     </div>
     <div class="stats" id="headerStats"><span class="loading">loading live data…</span></div>
@@ -23,6 +23,7 @@
       <button class="tab active" data-view="map">Map</button>
       <button class="tab" data-view="feed">Alert&nbsp;Feed</button>
       <button class="tab" data-view="method">Methodology&nbsp;&amp;&nbsp;Sources</button>
+      <button class="tab help-tab" id="helpBtn" title="Show the guided tour">? Guide</button>
     </nav>
   </header>
 
@@ -127,6 +128,25 @@
     <div class="drawer-inner" id="drawerInner"></div>
   </div>
   <div id="scrim"></div>
+
+  <!-- ===================== GUIDED TOUR (first-visit onboarding) ===================== -->
+  <div id="tour" hidden>
+    <div id="tourBackdrop"></div>
+    <div id="tourSpot"></div>
+    <div id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+      <div class="tour-step" id="tourStepNum"></div>
+      <h3 id="tourTitle"></h3>
+      <p id="tourBody"></p>
+      <div class="tour-actions">
+        <button id="tourSkip" class="tour-skip">Skip tour</button>
+        <div class="tour-nav">
+          <button id="tourPrev" class="tour-btn ghost">Back</button>
+          <button id="tourNext" class="tour-btn">Next</button>
+        </div>
+      </div>
+      <div class="tour-dots" id="tourDots"></div>
+    </div>
+  </div>
 
 </div>
 

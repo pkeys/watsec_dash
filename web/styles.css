@@ -271,3 +271,39 @@ footer.cite{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);co
   .feed-grid{grid-template-columns:1fr}
   #sidebar{display:none}
 }
+
+/* ===================== Guided tour (onboarding overlay) ===================== */
+.help-tab{ color:var(--accent); border-color:var(--line); }
+.help-tab:hover{ background:rgba(78,168,255,.10); }
+
+#tour[hidden]{ display:none; }
+#tour{ position:fixed; inset:0; z-index:3000; }
+#tourBackdrop{ position:absolute; inset:0; background:rgba(6,9,15,.62);
+  -webkit-backdrop-filter:blur(1px); backdrop-filter:blur(1px); }
+/* the spotlight: a transparent rect with a huge outer shadow that dims everything else */
+#tourSpot{ position:absolute; border-radius:10px; pointer-events:none;
+  box-shadow:0 0 0 9999px rgba(6,9,15,.62), 0 0 0 2px var(--accent), 0 0 22px 4px rgba(78,168,255,.45);
+  transition:all .28s cubic-bezier(.4,.0,.2,1); }
+/* when a step targets nothing (intro/outro), hide the spot and let the backdrop dim all */
+#tourSpot.hidden{ display:none; }
+
+#tourCard{ position:absolute; width:330px; max-width:calc(100vw - 32px);
+  background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  padding:16px 18px 14px; box-shadow:0 18px 50px rgba(0,0,0,.55);
+  transition:top .28s ease, left .28s ease; }
+#tourCard h3{ margin:2px 0 7px; font-size:16px; color:var(--ink); }
+#tourCard p{ margin:0 0 14px; font-size:13px; color:var(--muted); line-height:1.5; }
+.tour-step{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+.tour-actions{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.tour-nav{ display:flex; gap:8px; }
+.tour-btn{ background:var(--accent); border:1px solid var(--accent); color:#04121f; font-weight:600;
+  padding:7px 16px; border-radius:7px; cursor:pointer; font-family:inherit; font-size:13px; }
+.tour-btn:hover{ filter:brightness(1.08); }
+.tour-btn.ghost{ background:transparent; color:var(--muted); border-color:var(--line); font-weight:500; }
+.tour-btn.ghost:hover{ color:var(--ink); border-color:var(--accent); }
+.tour-btn.ghost:disabled{ opacity:.35; cursor:default; }
+.tour-skip{ background:none; border:none; color:var(--dim); cursor:pointer; font-family:inherit; font-size:12px; text-decoration:underline; }
+.tour-skip:hover{ color:var(--muted); }
+.tour-dots{ display:flex; gap:6px; justify-content:center; margin-top:13px; }
+.tour-dots span{ width:6px; height:6px; border-radius:50%; background:var(--line); transition:background .2s; }
+.tour-dots span.on{ background:var(--accent); }
