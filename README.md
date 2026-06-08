@@ -132,7 +132,7 @@ Remaining categories without a suitable open, global quantitative dataset are ma
   national elections (date + ISO3) become a temporal flashpoint flag. The Wikipedia parser derives its
   demonym→country map from Wikipedia's own demonym list (`elections.py`), so nothing is hand-keyed; both
   paths degrade gracefully to empty. `python3 seed_elections.py` force-seeds the Wikidata cache when WDQS is up.
-- **Open RSS news feeds (16 humanitarian / water / conflict sources)** — `news.py` — a
+- **Open RSS news feeds (22 humanitarian / water / conflict sources)** — `news.py` — a
   stdlib RSS harvester (no `feedparser`). Articles that mention a water-disturbance term
   **and** a country accumulate over a rolling 7-day store (`cache/news_store.json`),
   producing a real-time *water→instability* signal that complements UCDP's lagged record.

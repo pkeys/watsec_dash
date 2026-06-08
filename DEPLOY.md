@@ -57,9 +57,13 @@ unreliable there anyway. Instead every stream refreshes lazily when a visitor
 arrives and its cache has expired — except the slow, annual conflict data, which is
 served from the committed seed and never fetched on a web request (see below).
 
-> Want the live streams kept warm even with no visitors? Point a free external
-> scheduler (cron-job.org, GitHub Actions) at the site's URL every ~30–60 min — it
-> keeps the instance awake and triggers the lazy refreshes. Optional; not required.
+> **Keep-warm pinger (included).** [`.github/workflows/keep-warm.yml`](.github/workflows/keep-warm.yml)
+> pings `/api/hotspots` every 20 min via GitHub Actions. This keeps the free Render
+> instance awake and, crucially, lets the rolling 7-day **news** harvest accumulate
+> instead of resetting on every sleep. It uses zero UCDP quota (conflict is seeded).
+> Enable it by pushing to GitHub with Actions on; trigger a first run manually from
+> the repo's **Actions → keep-warm → Run workflow**. To stop it, disable the workflow
+> in the Actions tab.
 
 ## Refreshing the seeded conflict data (with the UCDP API token)
 

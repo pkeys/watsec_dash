@@ -1,0 +1,46 @@
+name: keep-warm
+
+# Pings the live site on a schedule to (1) keep the free-tier Render instance awake
+# and (2) trigger the server's data refreshes — most importantly the rolling 7-day
+# NEWS harvest, which only accumulates while the app is running. Without this, the
+# instance sleeps after ~15 min idle and wipes its cache, so the news window never
+# builds up. Each ping hits /api/hotspots, which rebuilds the payload when its cache
+# is cold (harvesting feeds, refreshing GDACS, etc.).
+#
+# This uses ZERO UCDP API quota: conflict data is served from the committed seed
+# (SKIP_HEAVY_FETCH on the cloud), never re-fetched on a request.
+
+on:
+  schedule:
+    # every 20 minutes. GitHub cron is UTC; the exact minute can drift a few mins.
+    - cron: "*/20 * * * *"
+  workflow_dispatch: {}   # allow manual runs from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the dashboard (wake + refresh)
+        run: |
+          URL="https://headwaters.onrender.com/api/hotspots"
+          echo "Pinging $URL"
+          # Generous timeout: a cold instance can take ~30-60s to wake.
+          code=$(curl -s -o /tmp/resp.json -w "%{http_code}" --max-time 90 "$URL" || echo "000")
+          echo "HTTP $code"
+          if [ "$code" != "200" ]; then
+            echo "Non-200 (instance may be waking); not failing the run."
+            exit 0
+          fi
+          # Surface the news signal so the Actions log shows it accumulating.
+          python3 - <<'PY'
+          import json
+          try:
+              d = json.load(open("/tmp/resp.json"))
+              c = d.get("counts", {})
+              print("news_window_articles:", c.get("news_window_articles"),
+                    "| emerging_signals:", c.get("emerging_signals"),
+                    "| countries_scored:", c.get("countries_scored"))
+          except Exception as e:
+              print("could not parse payload:", e)
+          PY

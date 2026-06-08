@@ -36,11 +36,15 @@ FEEDS = [
     ("The New Humanitarian",        "https://www.thenewhumanitarian.org/rss.xml"),
     ("Guardian Global Development",  "https://www.theguardian.com/global-development/rss"),
     ("UN News",                     "https://news.un.org/feed/subscribe/en/news/all/rss.xml"),
+    ("ReliefWeb",                   "https://reliefweb.int/updates/rss.xml"),
     # Water & climate
     ("Circle of Blue (water)",      "https://www.circleofblue.org/feed/"),
+    ("FloodList",                   "https://floodlist.com/feed"),
     ("Mongabay",                    "https://news.mongabay.com/feed/"),
     ("Carbon Brief",                "https://www.carbonbrief.org/feed"),
-    ("Climate Home News",           "https://www.climatechangenews.com/feed/"),
+    ("Eos (AGU earth science)",     "https://eos.org/feed"),
+    ("The Third Pole (water/Asia)", "https://www.thethirdpole.net/en/feed/"),
+    ("Dialogue Earth",              "https://dialogue.earth/en/feed/"),
     # Conflict / world
     ("Al Jazeera",                  "https://www.aljazeera.com/xml/rss/all.xml"),
     ("The Guardian World",          "https://www.theguardian.com/world/rss"),
@@ -48,10 +52,12 @@ FEEDS = [
     ("International Crisis Group",   "https://www.crisisgroup.org/rss.xml"),
     # Regional — strengthen non-Western, conflict-prone coverage
     ("allAfrica",                   "https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf"),
+    ("France 24 — Africa",          "https://www.france24.com/en/africa/rss"),
     ("Dawn (Pakistan)",             "https://www.dawn.com/feeds/home"),
     ("The Hindu — International",    "https://www.thehindu.com/news/international/?service=rss"),
     ("Premium Times (Nigeria)",     "https://www.premiumtimesng.com/feed"),
     ("Middle East Eye",             "https://www.middleeasteye.net/rss"),
+    ("Rappler (Philippines)",       "https://www.rappler.com/feed/"),
 ]
 
 # The framework's left side: a water disturbance must be present for an article
